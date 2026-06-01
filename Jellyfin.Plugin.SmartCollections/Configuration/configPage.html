@@ -7,8 +7,8 @@
 <body>
 <div id="SmartCollectionsConfigPage"
      data-role="page"
-     data-pluginuniqueid="7c78ef5d-3741-4b63-a22e-5a1f6c12f0db"
-     class="page type-interior pluginConfigurationPage">
+     class="page type-interior pluginConfigurationPage SmartCollectionsConfigPage"
+     data-require="emby-input,emby-button,emby-checkbox,emby-select">
 
     <div data-role="content">
         <div class="content-primary">
@@ -101,7 +101,7 @@
 </div>
 
 <script type="text/javascript">
-(function () {
+(function (win) {
     'use strict';
 
     var PLUGIN_ID = '7c78ef5d-3741-4b63-a22e-5a1f6c12f0db';
@@ -112,10 +112,10 @@
         return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
-    // ── Theme rules table ────────────────────────────────────────────────────
+    // ── Rules table ──────────────────────────────────────────────────────────
 
-    function renderRulesTable() {
-        var tbody = document.getElementById('ThemeRulesBody');
+    function renderRulesTable(page) {
+        var tbody = page.querySelector('#ThemeRulesBody');
         if (!tbody) return;
         tbody.innerHTML = '';
         themeRules.forEach(function (rule, idx) {
@@ -126,24 +126,25 @@
                 '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-genre" value="' + esc(rule.GenreKeywords) + '" placeholder="Holiday" style="width:100%;" /></td>' +
                 '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-tag" value="' + esc(rule.TagKeywords) + '" placeholder="christmas" style="width:100%;" /></td>' +
                 '<td style="padding:4px 8px;"><input type="number" class="emby-input rule-min" value="' + (rule.MinMovieCount || 2) + '" min="1" max="99" style="width:4em;" /></td>' +
-                '<td style="padding:4px 8px;"><select class="rule-mode" style="padding:4px; background:#333; color:#fff; border:1px solid #555;">' +
-                '<option value="Any"' + (rule.MatchMode !== 'All' ? ' selected' : '') + '>Any</option>' +
-                '<option value="All"' + (rule.MatchMode === 'All' ? ' selected' : '') + '>All</option>' +
-                '</select></td>' +
+                '<td style="padding:4px 8px;">' +
+                  '<select class="rule-mode" style="padding:4px; background:var(--color-backdrop,#333); color:var(--color-text,#fff); border:1px solid #555; border-radius:2px;">' +
+                  '<option value="Any"' + (rule.MatchMode !== 'All' ? ' selected' : '') + '>Any</option>' +
+                  '<option value="All"' + (rule.MatchMode === 'All' ? ' selected' : '') + '>All</option>' +
+                  '</select></td>' +
                 '<td style="padding:4px 8px; text-align:center;"><input type="checkbox" class="rule-enabled"' + (rule.Enabled ? ' checked' : '') + ' /></td>' +
-                '<td style="padding:4px 8px;"><button type="button" class="rule-delete" data-idx="' + idx + '" style="cursor:pointer; background:none; border:none; color:#cc3333; font-size:1em;">✕</button></td>';
+                '<td style="padding:4px 8px;"><button type="button" class="rule-delete" data-idx="' + idx + '" style="cursor:pointer; background:none; border:none; color:#e87c7c; font-size:1em; padding:2px 6px;">✕</button></td>';
             tbody.appendChild(tr);
         });
         tbody.querySelectorAll('.rule-delete').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 themeRules.splice(parseInt(this.dataset.idx, 10), 1);
-                renderRulesTable();
+                renderRulesTable(page);
             });
         });
     }
 
-    function collectRulesFromTable() {
-        var rows = document.querySelectorAll('#ThemeRulesBody tr');
+    function collectRulesFromTable(page) {
+        var rows = page.querySelectorAll('#ThemeRulesBody tr');
         themeRules = Array.from(rows).map(function (tr) {
             return {
                 Name:          tr.querySelector('.rule-name').value.trim(),
@@ -159,8 +160,8 @@
 
     // ── User-deleted section ─────────────────────────────────────────────────
 
-    function renderUserDeleted() {
-        var div = document.getElementById('UserDeletedSection');
+    function renderUserDeleted(page) {
+        var div = page.querySelector('#UserDeletedSection');
         if (!div) return;
         if (!userDeletedKeys.length) {
             div.innerHTML = '<p><em>None — all missing collections will be recreated.</em></p>';
@@ -178,88 +179,100 @@
         div.querySelectorAll('.btn-undel').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 userDeletedKeys.splice(parseInt(this.dataset.idx, 10), 1);
-                renderUserDeleted();
+                renderUserDeleted(page);
             });
         });
     }
 
     // ── Load / Save ──────────────────────────────────────────────────────────
 
-    function loadConfig() {
-        ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
-            document.getElementById('chkEnableSeries').checked = config.EnableSeriesCollections !== false;
-            document.getElementById('txtSeriesMin').value      = config.SeriesMinMovieCount || 2;
-            document.getElementById('chkEnableTheme').checked  = config.EnableThemeCollections !== false;
-            document.getElementById('txtSyncInterval').value   = config.SyncIntervalHours || 24;
+    function loadConfig(page) {
+        if (!win.ApiClient || typeof win.ApiClient.getPluginConfiguration !== 'function') {
+            console.warn('SmartCollections: ApiClient not ready, retrying in 500ms');
+            setTimeout(function () { loadConfig(page); }, 500);
+            return;
+        }
+        win.ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
+            page.querySelector('#chkEnableSeries').checked = config.EnableSeriesCollections !== false;
+            page.querySelector('#txtSeriesMin').value      = config.SeriesMinMovieCount || 2;
+            page.querySelector('#chkEnableTheme').checked  = config.EnableThemeCollections !== false;
+            page.querySelector('#txtSyncInterval').value   = config.SyncIntervalHours || 24;
 
-            try { themeRules = JSON.parse(config.ThemeCollectionRulesJson || '[]'); }
-            catch (e) { themeRules = []; }
-            renderRulesTable();
+            try { themeRules = JSON.parse(config.ThemeCollectionRulesJson || '[]'); } catch (e) { themeRules = []; }
+            renderRulesTable(page);
 
-            try { userDeletedKeys = JSON.parse(config.UserDeletedCollectionKeysJson || '[]'); }
-            catch (e) { userDeletedKeys = []; }
-            renderUserDeleted();
+            try { userDeletedKeys = JSON.parse(config.UserDeletedCollectionKeysJson || '[]'); } catch (e) { userDeletedKeys = []; }
+            renderUserDeleted(page);
         }).catch(function (err) {
-            console.error('SmartCollections loadConfig error', err);
+            console.error('SmartCollections: loadConfig failed', err);
         });
     }
 
-    function saveConfig(e) {
+    function saveConfig(page, e) {
         e.preventDefault();
-        collectRulesFromTable();
+        collectRulesFromTable(page);
 
-        ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
-            config.EnableSeriesCollections       = document.getElementById('chkEnableSeries').checked;
-            config.SeriesMinMovieCount           = parseInt(document.getElementById('txtSeriesMin').value, 10) || 2;
-            config.EnableThemeCollections        = document.getElementById('chkEnableTheme').checked;
-            config.SyncIntervalHours             = parseInt(document.getElementById('txtSyncInterval').value, 10) || 24;
+        if (!win.ApiClient) { console.error('SmartCollections: ApiClient not available'); return; }
+
+        win.ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
+            config.EnableSeriesCollections       = page.querySelector('#chkEnableSeries').checked;
+            config.SeriesMinMovieCount           = parseInt(page.querySelector('#txtSeriesMin').value, 10) || 2;
+            config.EnableThemeCollections        = page.querySelector('#chkEnableTheme').checked;
+            config.SyncIntervalHours             = parseInt(page.querySelector('#txtSyncInterval').value, 10) || 24;
             config.ThemeCollectionRulesJson      = JSON.stringify(themeRules);
             config.UserDeletedCollectionKeysJson = JSON.stringify(userDeletedKeys);
-            return ApiClient.updatePluginConfiguration(PLUGIN_ID, config);
+            return win.ApiClient.updatePluginConfiguration(PLUGIN_ID, config);
         }).then(function () {
             Dashboard.processPluginConfigurationUpdateResult();
         }).catch(function (err) {
-            console.error('SmartCollections saveConfig error', err);
+            console.error('SmartCollections: saveConfig failed', err);
             Dashboard.alert('Failed to save configuration.');
         });
     }
 
-    // ── Wire-up ──────────────────────────────────────────────────────────────
+    // ── Wire up the page ─────────────────────────────────────────────────────
 
-    function init() {
-        var addBtn  = document.getElementById('btnAddRule');
-        var form    = document.getElementById('SmartCollectionsConfigForm');
-        var page    = document.getElementById('SmartCollectionsConfigPage');
+    function wire(page) {
+        if (!page || page.__scWired) return;
+        page.__scWired = true;
+        console.log('SmartCollections: wiring config page');
 
+        var addBtn = page.querySelector('#btnAddRule');
         if (addBtn) {
             addBtn.addEventListener('click', function () {
-                collectRulesFromTable();
+                collectRulesFromTable(page);
                 themeRules.push({ Name: 'New Collection', TitleKeywords: '', GenreKeywords: '', TagKeywords: '', MinMovieCount: 2, MatchMode: 'Any', Enabled: true });
-                renderRulesTable();
+                renderRulesTable(page);
             });
         }
 
+        var form = page.querySelector('#SmartCollectionsConfigForm');
         if (form) {
-            form.addEventListener('submit', saveConfig);
+            form.addEventListener('submit', function (e) { saveConfig(page, e); });
         }
 
-        if (page) {
-            // viewshow = Jellyfin 10.7+ view manager; pageshow = fallback for older versions
-            page.addEventListener('viewshow', loadConfig);
-            page.addEventListener('pageshow', loadConfig);
-        }
+        page.addEventListener('viewshow', function () { loadConfig(page); });
+        page.addEventListener('pageshow',  function () { loadConfig(page); });
 
-        // Also load immediately in case neither event fires (some embedding contexts)
-        loadConfig();
+        loadConfig(page);
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
+    function findAndWire() {
+        var page = document.getElementById('SmartCollectionsConfigPage');
+        if (page) wire(page);
     }
 
-}());
+    // Strategy 1: immediate (covers case where script runs after HTML is in DOM)
+    findAndWire();
+
+    // Strategy 2: deferred tick (covers case where script runs before HTML is fully available)
+    setTimeout(findAndWire, 0);
+
+    // Strategy 3: document-level capture of viewshow/pageshow (Jellyfin SPA navigation)
+    document.addEventListener('viewshow', findAndWire, { capture: true });
+    document.addEventListener('pageshow',  findAndWire);
+
+}(window));
 </script>
 </body>
 </html>
