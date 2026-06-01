@@ -5,7 +5,10 @@
     <title>Smart Collections</title>
 </head>
 <body>
-<div id="SmartCollectionsConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
+<div id="SmartCollectionsConfigPage"
+     data-role="page"
+     data-pluginuniqueid="7c78ef5d-3741-4b63-a22e-5a1f6c12f0db"
+     class="page type-interior pluginConfigurationPage"
      data-require="emby-input,emby-button,emby-checkbox,emby-select">
     <div data-role="content">
         <div class="content-primary">
@@ -198,7 +201,8 @@
             try { userDeletedKeys = JSON.parse(config.UserDeletedCollectionKeysJson || '[]'); }
             catch (e) { userDeletedKeys = []; }
             renderUserDeleted();
-        }).catch(function () {
+        }).catch(function (err) {
+            console.error('SmartCollections: failed to load config', err);
             Dashboard.alert('Failed to load plugin configuration.');
         });
     }
@@ -208,16 +212,17 @@
         collectRulesFromTable();
 
         ApiClient.getPluginConfiguration(pluginId).then(function (config) {
-            config.EnableSeriesCollections      = document.getElementById('EnableSeriesCollections').checked;
-            config.SeriesMinMovieCount          = parseInt(document.getElementById('SeriesMinMovieCount').value) || 2;
-            config.EnableThemeCollections       = document.getElementById('EnableThemeCollections').checked;
-            config.SyncIntervalHours            = parseInt(document.getElementById('SyncIntervalHours').value) || 24;
-            config.ThemeCollectionRulesJson     = JSON.stringify(themeRules);
+            config.EnableSeriesCollections       = document.getElementById('EnableSeriesCollections').checked;
+            config.SeriesMinMovieCount           = parseInt(document.getElementById('SeriesMinMovieCount').value) || 2;
+            config.EnableThemeCollections        = document.getElementById('EnableThemeCollections').checked;
+            config.SyncIntervalHours             = parseInt(document.getElementById('SyncIntervalHours').value) || 24;
+            config.ThemeCollectionRulesJson      = JSON.stringify(themeRules);
             config.UserDeletedCollectionKeysJson = JSON.stringify(userDeletedKeys);
             return ApiClient.updatePluginConfiguration(pluginId, config);
         }).then(function () {
             Dashboard.processPluginConfigurationUpdateResult();
-        }).catch(function () {
+        }).catch(function (err) {
+            console.error('SmartCollections: failed to save config', err);
             Dashboard.alert('Failed to save configuration.');
         });
     }
@@ -231,10 +236,12 @@
     });
 
     document.getElementById('SmartCollectionsConfigForm').addEventListener('submit', saveConfig);
-    document.querySelector('#SmartCollectionsConfigPage').addEventListener('pageshow', loadConfig);
+
+    // pagebeforeshow is the correct Jellyfin SPA event for plugin config pages
+    document.querySelector('#SmartCollectionsConfigPage').addEventListener('pagebeforeshow', loadConfig);
 
     function esc(s) {
-        return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 }());
 </script>
