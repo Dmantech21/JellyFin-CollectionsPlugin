@@ -8,8 +8,8 @@
 <div id="SmartCollectionsConfigPage"
      data-role="page"
      data-pluginuniqueid="7c78ef5d-3741-4b63-a22e-5a1f6c12f0db"
-     class="page type-interior pluginConfigurationPage"
-     data-require="emby-input,emby-button,emby-checkbox,emby-select">
+     class="page type-interior pluginConfigurationPage">
+
     <div data-role="content">
         <div class="content-primary">
 
@@ -25,11 +25,10 @@
                     next sync — unless you intentionally deleted it (tracked below).
                 </p>
 
-                <!-- ── Series collections ─────────────────────────────── -->
                 <h3 class="sectionTitle">Series Collections</h3>
                 <div class="checkboxContainer checkboxContainer-withDescription">
                     <label class="emby-checkbox-label">
-                        <input id="EnableSeriesCollections" type="checkbox" is="emby-checkbox" />
+                        <input id="chkEnableSeries" type="checkbox" is="emby-checkbox" />
                         <span>Enable series collections</span>
                     </label>
                     <div class="fieldDescription">
@@ -37,18 +36,15 @@
                     </div>
                 </div>
                 <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="SeriesMinMovieCount">
-                        Minimum movies per series
-                    </label>
-                    <input id="SeriesMinMovieCount" type="number" min="1" max="99" is="emby-input" />
+                    <label class="inputLabel inputLabelUnfocused" for="txtSeriesMin">Minimum movies per series</label>
+                    <input id="txtSeriesMin" type="number" min="1" max="99" is="emby-input" />
                     <div class="fieldDescription">Only create a collection when at least this many movies belong to the series. Default: 2.</div>
                 </div>
 
-                <!-- ── Theme collections ──────────────────────────────── -->
                 <h3 class="sectionTitle">Theme Collections</h3>
                 <div class="checkboxContainer checkboxContainer-withDescription">
                     <label class="emby-checkbox-label">
-                        <input id="EnableThemeCollections" type="checkbox" is="emby-checkbox" />
+                        <input id="chkEnableTheme" type="checkbox" is="emby-checkbox" />
                         <span>Enable theme collections</span>
                     </label>
                     <div class="fieldDescription">Creates collections based on title keywords, genres, or tags.</div>
@@ -65,28 +61,26 @@
                                 <th style="text-align:left; padding:6px 8px;">Min</th>
                                 <th style="text-align:left; padding:6px 8px;">Mode</th>
                                 <th style="text-align:center; padding:6px 8px;">On</th>
-                                <th style="padding:6px 8px;"></th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody id="ThemeRulesBody"></tbody>
                     </table>
-                    <button type="button" is="emby-button" class="raised" id="AddRuleBtn" style="margin-top:0.5em;">
-                        <span>Add Rule</span>
+                    <button type="button" is="emby-button" class="raised" id="btnAddRule" style="margin-top:0.5em;">
+                        Add Rule
                     </button>
                 </div>
 
-                <!-- ── Scheduler ──────────────────────────────────────── -->
                 <h3 class="sectionTitle">Schedule</h3>
                 <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="SyncIntervalHours">Sync interval (hours)</label>
-                    <input id="SyncIntervalHours" type="number" min="1" max="720" is="emby-input" />
+                    <label class="inputLabel inputLabelUnfocused" for="txtSyncInterval">Sync interval (hours)</label>
+                    <input id="txtSyncInterval" type="number" min="1" max="720" is="emby-input" />
                     <div class="fieldDescription">
                         How often the sync runs automatically. Trigger manually from
                         Administration → Scheduled Tasks → Smart Collections Sync.
                     </div>
                 </div>
 
-                <!-- ── User-deleted collections ───────────────────────── -->
                 <h3 class="sectionTitle">User-Deleted Collections</h3>
                 <p>
                     The plugin automatically tracks when you delete a collection it created and
@@ -95,10 +89,9 @@
                 </p>
                 <div id="UserDeletedSection"><em>Loading…</em></div>
 
-                <!-- ── Save ───────────────────────────────────────────── -->
                 <div style="margin-top:1.5em;">
                     <button type="submit" is="emby-button" class="raised button-submit block emby-button">
-                        <span>Save</span>
+                        Save
                     </button>
                 </div>
 
@@ -111,35 +104,39 @@
 (function () {
     'use strict';
 
-    var pluginId = '7c78ef5d-3741-4b63-a22e-5a1f6c12f0db';
+    var PLUGIN_ID = '7c78ef5d-3741-4b63-a22e-5a1f6c12f0db';
     var themeRules = [];
     var userDeletedKeys = [];
+
+    function esc(s) {
+        return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
 
     // ── Theme rules table ────────────────────────────────────────────────────
 
     function renderRulesTable() {
         var tbody = document.getElementById('ThemeRulesBody');
+        if (!tbody) return;
         tbody.innerHTML = '';
         themeRules.forEach(function (rule, idx) {
             var tr = document.createElement('tr');
-            tr.innerHTML = [
-                '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-name"  value="' + esc(rule.Name) + '" style="width:100%;" /></td>',
-                '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-title" value="' + esc(rule.TitleKeywords) + '" placeholder="christmas,xmas" style="width:100%;" /></td>',
-                '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-genre" value="' + esc(rule.GenreKeywords) + '" placeholder="Holiday" style="width:100%;" /></td>',
-                '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-tag"   value="' + esc(rule.TagKeywords) + '"   placeholder="christmas" style="width:100%;" /></td>',
-                '<td style="padding:4px 8px;"><input type="number" class="emby-input rule-min" value="' + (rule.MinMovieCount || 2) + '" min="1" max="99" style="width:4em;" /></td>',
-                '<td style="padding:4px 8px;"><select class="emby-select rule-mode" style="padding:4px;">',
-                '  <option value="Any"' + (rule.MatchMode === 'Any' ? ' selected' : '') + '>Any</option>',
-                '  <option value="All"' + (rule.MatchMode === 'All' ? ' selected' : '') + '>All</option>',
-                '</select></td>',
-                '<td style="padding:4px 8px; text-align:center;"><input type="checkbox" class="rule-enabled"' + (rule.Enabled ? ' checked' : '') + ' /></td>',
-                '<td style="padding:4px 8px;"><button type="button" class="emby-button rule-delete" data-idx="' + idx + '" style="color:#cc3333; min-width:2em;">✕</button></td>'
-            ].join('');
+            tr.innerHTML =
+                '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-name" value="' + esc(rule.Name) + '" style="width:100%;" /></td>' +
+                '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-title" value="' + esc(rule.TitleKeywords) + '" placeholder="christmas,xmas" style="width:100%;" /></td>' +
+                '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-genre" value="' + esc(rule.GenreKeywords) + '" placeholder="Holiday" style="width:100%;" /></td>' +
+                '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-tag" value="' + esc(rule.TagKeywords) + '" placeholder="christmas" style="width:100%;" /></td>' +
+                '<td style="padding:4px 8px;"><input type="number" class="emby-input rule-min" value="' + (rule.MinMovieCount || 2) + '" min="1" max="99" style="width:4em;" /></td>' +
+                '<td style="padding:4px 8px;"><select class="rule-mode" style="padding:4px; background:#333; color:#fff; border:1px solid #555;">' +
+                '<option value="Any"' + (rule.MatchMode !== 'All' ? ' selected' : '') + '>Any</option>' +
+                '<option value="All"' + (rule.MatchMode === 'All' ? ' selected' : '') + '>All</option>' +
+                '</select></td>' +
+                '<td style="padding:4px 8px; text-align:center;"><input type="checkbox" class="rule-enabled"' + (rule.Enabled ? ' checked' : '') + ' /></td>' +
+                '<td style="padding:4px 8px;"><button type="button" class="rule-delete" data-idx="' + idx + '" style="cursor:pointer; background:none; border:none; color:#cc3333; font-size:1em;">✕</button></td>';
             tbody.appendChild(tr);
         });
         tbody.querySelectorAll('.rule-delete').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                themeRules.splice(parseInt(this.getAttribute('data-idx')), 1);
+                themeRules.splice(parseInt(this.dataset.idx, 10), 1);
                 renderRulesTable();
             });
         });
@@ -153,7 +150,7 @@
                 TitleKeywords: tr.querySelector('.rule-title').value.trim(),
                 GenreKeywords: tr.querySelector('.rule-genre').value.trim(),
                 TagKeywords:   tr.querySelector('.rule-tag').value.trim(),
-                MinMovieCount: parseInt(tr.querySelector('.rule-min').value) || 2,
+                MinMovieCount: parseInt(tr.querySelector('.rule-min').value, 10) || 2,
                 MatchMode:     tr.querySelector('.rule-mode').value,
                 Enabled:       tr.querySelector('.rule-enabled').checked
             };
@@ -164,22 +161,23 @@
 
     function renderUserDeleted() {
         var div = document.getElementById('UserDeletedSection');
-        if (!userDeletedKeys || userDeletedKeys.length === 0) {
+        if (!div) return;
+        if (!userDeletedKeys.length) {
             div.innerHTML = '<p><em>None — all missing collections will be recreated.</em></p>';
             return;
         }
         var html = '<ul style="list-style:none; padding:0;">';
         userDeletedKeys.forEach(function (key, idx) {
-            html += '<li style="margin:4px 0;">'
-                + '<span style="margin-right:8px; font-family:monospace;">' + esc(key) + '</span>'
-                + '<button type="button" class="emby-button btn-undel" data-idx="' + idx + '" '
-                + 'style="font-size:0.85em;">Allow Recreate</button></li>';
+            html += '<li style="margin:4px 0;">' +
+                '<code style="margin-right:8px;">' + esc(key) + '</code>' +
+                '<button type="button" class="btn-undel" data-idx="' + idx + '" ' +
+                'style="cursor:pointer; padding:2px 8px; background:#444; border:1px solid #666; color:#fff;">Allow Recreate</button></li>';
         });
         html += '</ul>';
         div.innerHTML = html;
         div.querySelectorAll('.btn-undel').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                userDeletedKeys.splice(parseInt(this.getAttribute('data-idx')), 1);
+                userDeletedKeys.splice(parseInt(this.dataset.idx, 10), 1);
                 renderUserDeleted();
             });
         });
@@ -188,11 +186,11 @@
     // ── Load / Save ──────────────────────────────────────────────────────────
 
     function loadConfig() {
-        ApiClient.getPluginConfiguration(pluginId).then(function (config) {
-            document.getElementById('EnableSeriesCollections').checked = config.EnableSeriesCollections !== false;
-            document.getElementById('SeriesMinMovieCount').value       = config.SeriesMinMovieCount || 2;
-            document.getElementById('EnableThemeCollections').checked  = config.EnableThemeCollections !== false;
-            document.getElementById('SyncIntervalHours').value         = config.SyncIntervalHours || 24;
+        ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
+            document.getElementById('chkEnableSeries').checked = config.EnableSeriesCollections !== false;
+            document.getElementById('txtSeriesMin').value      = config.SeriesMinMovieCount || 2;
+            document.getElementById('chkEnableTheme').checked  = config.EnableThemeCollections !== false;
+            document.getElementById('txtSyncInterval').value   = config.SyncIntervalHours || 24;
 
             try { themeRules = JSON.parse(config.ThemeCollectionRulesJson || '[]'); }
             catch (e) { themeRules = []; }
@@ -202,8 +200,7 @@
             catch (e) { userDeletedKeys = []; }
             renderUserDeleted();
         }).catch(function (err) {
-            console.error('SmartCollections: failed to load config', err);
-            Dashboard.alert('Failed to load plugin configuration.');
+            console.error('SmartCollections loadConfig error', err);
         });
     }
 
@@ -211,38 +208,57 @@
         e.preventDefault();
         collectRulesFromTable();
 
-        ApiClient.getPluginConfiguration(pluginId).then(function (config) {
-            config.EnableSeriesCollections       = document.getElementById('EnableSeriesCollections').checked;
-            config.SeriesMinMovieCount           = parseInt(document.getElementById('SeriesMinMovieCount').value) || 2;
-            config.EnableThemeCollections        = document.getElementById('EnableThemeCollections').checked;
-            config.SyncIntervalHours             = parseInt(document.getElementById('SyncIntervalHours').value) || 24;
+        ApiClient.getPluginConfiguration(PLUGIN_ID).then(function (config) {
+            config.EnableSeriesCollections       = document.getElementById('chkEnableSeries').checked;
+            config.SeriesMinMovieCount           = parseInt(document.getElementById('txtSeriesMin').value, 10) || 2;
+            config.EnableThemeCollections        = document.getElementById('chkEnableTheme').checked;
+            config.SyncIntervalHours             = parseInt(document.getElementById('txtSyncInterval').value, 10) || 24;
             config.ThemeCollectionRulesJson      = JSON.stringify(themeRules);
             config.UserDeletedCollectionKeysJson = JSON.stringify(userDeletedKeys);
-            return ApiClient.updatePluginConfiguration(pluginId, config);
+            return ApiClient.updatePluginConfiguration(PLUGIN_ID, config);
         }).then(function () {
             Dashboard.processPluginConfigurationUpdateResult();
         }).catch(function (err) {
-            console.error('SmartCollections: failed to save config', err);
+            console.error('SmartCollections saveConfig error', err);
             Dashboard.alert('Failed to save configuration.');
         });
     }
 
     // ── Wire-up ──────────────────────────────────────────────────────────────
 
-    document.getElementById('AddRuleBtn').addEventListener('click', function () {
-        collectRulesFromTable();
-        themeRules.push({ Name: 'New Collection', TitleKeywords: '', GenreKeywords: '', TagKeywords: '', MinMovieCount: 2, MatchMode: 'Any', Enabled: true });
-        renderRulesTable();
-    });
+    function init() {
+        var addBtn  = document.getElementById('btnAddRule');
+        var form    = document.getElementById('SmartCollectionsConfigForm');
+        var page    = document.getElementById('SmartCollectionsConfigPage');
 
-    document.getElementById('SmartCollectionsConfigForm').addEventListener('submit', saveConfig);
+        if (addBtn) {
+            addBtn.addEventListener('click', function () {
+                collectRulesFromTable();
+                themeRules.push({ Name: 'New Collection', TitleKeywords: '', GenreKeywords: '', TagKeywords: '', MinMovieCount: 2, MatchMode: 'Any', Enabled: true });
+                renderRulesTable();
+            });
+        }
 
-    // pagebeforeshow is the correct Jellyfin SPA event for plugin config pages
-    document.querySelector('#SmartCollectionsConfigPage').addEventListener('pagebeforeshow', loadConfig);
+        if (form) {
+            form.addEventListener('submit', saveConfig);
+        }
 
-    function esc(s) {
-        return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        if (page) {
+            // viewshow = Jellyfin 10.7+ view manager; pageshow = fallback for older versions
+            page.addEventListener('viewshow', loadConfig);
+            page.addEventListener('pageshow', loadConfig);
+        }
+
+        // Also load immediately in case neither event fires (some embedding contexts)
+        loadConfig();
     }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
 }());
 </script>
 </body>
