@@ -1,0 +1,18 @@
+---
+version: 1
+name: "Smart Collections"
+guid: "7c78ef5d-3741-4b63-a22e-5a1f6c12f0db"
+imageUrl: ""
+description: "Automatically creates and maintains movie collections based on series and themes."
+overview: >
+  Creates movie collections in two ways:
+  (1) Series collections — groups movies that share a TMDb collection name (e.g. "John Wick Collection").
+  (2) Theme collections — groups movies matching user-defined keyword, genre, or tag rules (e.g. Christmas movies).
+  Self-healing: collections this plugin created are recreated automatically if they go missing,
+  unless you intentionally deleted them (the plugin tracks user deletions and respects them).
+category: "General"
+owner: "dmantech21"
+artifacts:
+  - "Jellyfin.Plugin.SmartCollections.dll"
+targetAbi: "10.9.0.0"
+framework: "net8.0"

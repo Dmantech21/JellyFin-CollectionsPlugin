@@ -1,0 +1,135 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need full history so we can push manifest.json back to main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Parse version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"           # e.g. v1.0.0
+          VER="${TAG#v}"                      # e.g. 1.0.0
+          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          # Jellyfin ABI version has four parts
+          echo "version4=${VER}.0" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: |
+          dotnet publish Jellyfin.Plugin.SmartCollections/Jellyfin.Plugin.SmartCollections.csproj \
+            -c Release \
+            -o publish/ \
+            /p:Version=${{ steps.version.outputs.version }}
+
+      - name: Write meta.json
+        run: |
+          cat > publish/meta.json <<EOF
+          {
+            "category": "General",
+            "guid": "7c78ef5d-3741-4b63-a22e-5a1f6c12f0db",
+            "name": "Smart Collections",
+            "description": "Automatically creates and maintains movie collections based on series and themes.",
+            "overview": "Creates movie collections for series (via TMDb metadata) and custom theme rules (e.g. Christmas movies). Self-healing: missing plugin-managed collections are recreated automatically unless you deleted them intentionally.",
+            "owner": "dmantech21",
+            "targetAbi": "10.9.0.0",
+            "version": "${{ steps.version.outputs.version }}"
+          }
+          EOF
+
+      - name: Create plugin zip
+        id: zip
+        run: |
+          ZIP="smartcollections_${{ steps.version.outputs.version }}.zip"
+          cd publish
+          zip -j "../$ZIP" Jellyfin.Plugin.SmartCollections.dll meta.json
+          cd ..
+          CHECKSUM=$(md5sum "$ZIP" | awk '{print $1}')
+          echo "zip=$ZIP"           >> "$GITHUB_OUTPUT"
+          echo "checksum=$CHECKSUM" >> "$GITHUB_OUTPUT"
+
+      - name: Update manifest.json
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          python3 - <<'PYEOF'
+          import json, os, sys
+
+          manifest_path = "manifest.json"
+          with open(manifest_path) as f:
+              manifest = json.load(f)
+
+          version    = os.environ["VERSION"]
+          version4   = os.environ["VERSION4"]
+          source_url = os.environ["SOURCE_URL"]
+          checksum   = os.environ["CHECKSUM"]
+          timestamp  = os.environ["TIMESTAMP"]
+          changelog  = os.environ.get("CHANGELOG", "See release notes.")
+
+          new_entry = {
+              "version":   version4,
+              "changelog": changelog,
+              "targetAbi": "10.9.0.0",
+              "sourceUrl": source_url,
+              "checksum":  checksum,
+              "timestamp": timestamp,
+          }
+
+          # Prepend so latest appears first
+          manifest[0]["versions"].insert(0, new_entry)
+
+          with open(manifest_path, "w") as f:
+              json.dump(manifest, f, indent=2)
+          print(f"Updated manifest with version {version}")
+          PYEOF
+        env:
+          VERSION:    ${{ steps.version.outputs.version }}
+          VERSION4:   ${{ steps.version.outputs.version4 }}
+          SOURCE_URL: https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/${{ steps.zip.outputs.zip }}
+          CHECKSUM:   ${{ steps.zip.outputs.checksum }}
+          TIMESTAMP:  ${{ steps.version.outputs.tag }}
+
+      - name: Commit updated manifest.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          git commit -m "chore: update manifest for ${{ steps.version.outputs.tag }}"
+          git push origin HEAD:main
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "Smart Collections ${{ steps.version.outputs.tag }}"
+          body: |
+            ## Installation
+
+            Add this URL to Jellyfin under **Administration → Plugins → Repositories**:
+
+            ```
+            https://raw.githubusercontent.com/${{ github.repository }}/main/manifest.json
+            ```
+
+            Then install **Smart Collections** from the catalog and restart Jellyfin.
+
+            ---
+            **MD5:** `${{ steps.zip.outputs.checksum }}`
+          files: ${{ steps.zip.outputs.zip }}
