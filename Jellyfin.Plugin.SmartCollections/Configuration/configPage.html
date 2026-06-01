@@ -12,16 +12,14 @@
 
             <form id="SmartCollectionsConfigForm">
 
-                <!-- ── Header ─────────────────────────────────────────── -->
                 <div class="sectionTitleContainer flex align-items-center">
                     <h2 class="sectionTitle">Smart Collections</h2>
                 </div>
                 <p>
                     Automatically creates movie collections for series (using TMDb collection
                     metadata already on your movies) and for custom themes (e.g. Christmas movies).
-                    Collections this plugin creates are <strong>self-healing</strong>: if one
-                    disappears it will be recreated on the next sync — unless you intentionally
-                    deleted it, in which case it will never be recreated.
+                    Self-healing: if a plugin-managed collection disappears it is recreated on the
+                    next sync — unless you intentionally deleted it (tracked below).
                 </p>
 
                 <!-- ── Series collections ─────────────────────────────── -->
@@ -32,20 +30,15 @@
                         <span>Enable series collections</span>
                     </label>
                     <div class="fieldDescription">
-                        Groups movies that share the same TMDb collection name (e.g. "John Wick Collection")
-                        into a Jellyfin collection.
+                        Groups movies that share a TMDb collection name (e.g. "John Wick Collection").
                     </div>
                 </div>
-
                 <div class="inputContainer">
                     <label class="inputLabel inputLabelUnfocused" for="SeriesMinMovieCount">
                         Minimum movies per series
                     </label>
                     <input id="SeriesMinMovieCount" type="number" min="1" max="99" is="emby-input" />
-                    <div class="fieldDescription">
-                        A collection is only created when at least this many movies belong to the series.
-                        Default: 2.
-                    </div>
+                    <div class="fieldDescription">Only create a collection when at least this many movies belong to the series. Default: 2.</div>
                 </div>
 
                 <!-- ── Theme collections ──────────────────────────────── -->
@@ -55,14 +48,11 @@
                         <input id="EnableThemeCollections" type="checkbox" is="emby-checkbox" />
                         <span>Enable theme collections</span>
                     </label>
-                    <div class="fieldDescription">
-                        Creates collections based on title keywords, genres, or tags you define below.
-                    </div>
+                    <div class="fieldDescription">Creates collections based on title keywords, genres, or tags.</div>
                 </div>
 
-                <!-- Theme rules table -->
-                <div style="margin-top:1em;">
-                    <table class="tblCollapseToggle" style="width:100%; border-collapse:collapse;">
+                <div style="margin-top:1em; overflow-x:auto;">
+                    <table style="width:100%; border-collapse:collapse; min-width:600px;">
                         <thead>
                             <tr>
                                 <th style="text-align:left; padding:6px 8px;">Name</th>
@@ -71,15 +61,13 @@
                                 <th style="text-align:left; padding:6px 8px;">Tag keywords</th>
                                 <th style="text-align:left; padding:6px 8px;">Min</th>
                                 <th style="text-align:left; padding:6px 8px;">Mode</th>
-                                <th style="text-align:left; padding:6px 8px;">On</th>
+                                <th style="text-align:center; padding:6px 8px;">On</th>
                                 <th style="padding:6px 8px;"></th>
                             </tr>
                         </thead>
                         <tbody id="ThemeRulesBody"></tbody>
                     </table>
-
-                    <button type="button" is="emby-button" class="raised" id="AddRuleBtn"
-                            style="margin-top:0.5em;">
+                    <button type="button" is="emby-button" class="raised" id="AddRuleBtn" style="margin-top:0.5em;">
                         <span>Add Rule</span>
                     </button>
                 </div>
@@ -87,37 +75,31 @@
                 <!-- ── Scheduler ──────────────────────────────────────── -->
                 <h3 class="sectionTitle">Schedule</h3>
                 <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="SyncIntervalHours">
-                        Sync interval (hours)
-                    </label>
+                    <label class="inputLabel inputLabelUnfocused" for="SyncIntervalHours">Sync interval (hours)</label>
                     <input id="SyncIntervalHours" type="number" min="1" max="720" is="emby-input" />
                     <div class="fieldDescription">
-                        How often the sync task runs automatically. You can also trigger it manually
-                        from Administration → Scheduled Tasks → Smart Collections Sync.
-                        Default: 24.
+                        How often the sync runs automatically. Trigger manually from
+                        Administration → Scheduled Tasks → Smart Collections Sync.
                     </div>
                 </div>
 
                 <!-- ── User-deleted collections ───────────────────────── -->
                 <h3 class="sectionTitle">User-Deleted Collections</h3>
                 <p>
-                    The following collection rule keys have been marked as user-deleted and will
-                    <strong>not</strong> be recreated automatically. Remove an entry here to allow
-                    the plugin to recreate it on the next sync.
+                    The plugin automatically tracks when you delete a collection it created and
+                    will not recreate it. Remove an entry here to allow the plugin to recreate it
+                    on the next sync.
                 </p>
-                <div id="UserDeletedSection">
-                    <em>Loading…</em>
-                </div>
+                <div id="UserDeletedSection"><em>Loading…</em></div>
 
                 <!-- ── Save ───────────────────────────────────────────── -->
-                <div>
+                <div style="margin-top:1.5em;">
                     <button type="submit" is="emby-button" class="raised button-submit block emby-button">
                         <span>Save</span>
                     </button>
                 </div>
 
             </form>
-
         </div>
     </div>
 </div>
@@ -127,13 +109,10 @@
     'use strict';
 
     var pluginId = '7c78ef5d-3741-4b63-a22e-5a1f6c12f0db';
-
-    // ── State ────────────────────────────────────────────────────────────────
-
     var themeRules = [];
     var userDeletedKeys = [];
 
-    // ── Row rendering ────────────────────────────────────────────────────────
+    // ── Theme rules table ────────────────────────────────────────────────────
 
     function renderRulesTable() {
         var tbody = document.getElementById('ThemeRulesBody');
@@ -141,21 +120,20 @@
         themeRules.forEach(function (rule, idx) {
             var tr = document.createElement('tr');
             tr.innerHTML = [
-                '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-name" value="' + esc(rule.Name) + '" style="width:100%;" /></td>',
+                '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-name"  value="' + esc(rule.Name) + '" style="width:100%;" /></td>',
                 '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-title" value="' + esc(rule.TitleKeywords) + '" placeholder="christmas,xmas" style="width:100%;" /></td>',
                 '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-genre" value="' + esc(rule.GenreKeywords) + '" placeholder="Holiday" style="width:100%;" /></td>',
                 '<td style="padding:4px 8px;"><input type="text" class="emby-input rule-tag"   value="' + esc(rule.TagKeywords) + '"   placeholder="christmas" style="width:100%;" /></td>',
-                '<td style="padding:4px 8px;"><input type="number" class="emby-input rule-min" value="' + rule.MinMovieCount + '" min="1" max="99" style="width:4em;" /></td>',
+                '<td style="padding:4px 8px;"><input type="number" class="emby-input rule-min" value="' + (rule.MinMovieCount || 2) + '" min="1" max="99" style="width:4em;" /></td>',
                 '<td style="padding:4px 8px;"><select class="emby-select rule-mode" style="padding:4px;">',
                 '  <option value="Any"' + (rule.MatchMode === 'Any' ? ' selected' : '') + '>Any</option>',
                 '  <option value="All"' + (rule.MatchMode === 'All' ? ' selected' : '') + '>All</option>',
                 '</select></td>',
                 '<td style="padding:4px 8px; text-align:center;"><input type="checkbox" class="rule-enabled"' + (rule.Enabled ? ' checked' : '') + ' /></td>',
-                '<td style="padding:4px 8px;"><button type="button" class="emby-button rule-delete" data-idx="' + idx + '" style="color:#cc3333;">✕</button></td>'
+                '<td style="padding:4px 8px;"><button type="button" class="emby-button rule-delete" data-idx="' + idx + '" style="color:#cc3333; min-width:2em;">✕</button></td>'
             ].join('');
             tbody.appendChild(tr);
         });
-
         tbody.querySelectorAll('.rule-delete').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 themeRules.splice(parseInt(this.getAttribute('data-idx')), 1);
@@ -189,10 +167,10 @@
         }
         var html = '<ul style="list-style:none; padding:0;">';
         userDeletedKeys.forEach(function (key, idx) {
-            html += '<li style="margin:4px 0;">' +
-                '<span style="margin-right:8px;">' + esc(key) + '</span>' +
-                '<button type="button" class="emby-button btn-undel" data-idx="' + idx + '" ' +
-                'style="font-size:0.85em;">Restore</button></li>';
+            html += '<li style="margin:4px 0;">'
+                + '<span style="margin-right:8px; font-family:monospace;">' + esc(key) + '</span>'
+                + '<button type="button" class="emby-button btn-undel" data-idx="' + idx + '" '
+                + 'style="font-size:0.85em;">Allow Recreate</button></li>';
         });
         html += '</ul>';
         div.innerHTML = html;
@@ -208,32 +186,20 @@
 
     function loadConfig() {
         ApiClient.getPluginConfiguration(pluginId).then(function (config) {
-            document.getElementById('EnableSeriesCollections').checked = config.EnableSeriesCollections;
+            document.getElementById('EnableSeriesCollections').checked = config.EnableSeriesCollections !== false;
             document.getElementById('SeriesMinMovieCount').value       = config.SeriesMinMovieCount || 2;
-            document.getElementById('EnableThemeCollections').checked  = config.EnableThemeCollections;
+            document.getElementById('EnableThemeCollections').checked  = config.EnableThemeCollections !== false;
             document.getElementById('SyncIntervalHours').value         = config.SyncIntervalHours || 24;
 
-            try {
-                themeRules = JSON.parse(config.ThemeCollectionRulesJson || '[]');
-            } catch (e) {
-                themeRules = [];
-            }
+            try { themeRules = JSON.parse(config.ThemeCollectionRulesJson || '[]'); }
+            catch (e) { themeRules = []; }
             renderRulesTable();
+
+            try { userDeletedKeys = JSON.parse(config.UserDeletedCollectionKeysJson || '[]'); }
+            catch (e) { userDeletedKeys = []; }
+            renderUserDeleted();
         }).catch(function () {
             Dashboard.alert('Failed to load plugin configuration.');
-        });
-
-        // Load user-deleted keys from state file via custom API endpoint
-        ApiClient.ajax({
-            url: ApiClient.getUrl('SmartCollections/UserDeletedKeys'),
-            type: 'GET',
-            dataType: 'json'
-        }).then(function (keys) {
-            userDeletedKeys = keys || [];
-            renderUserDeleted();
-        }).catch(function () {
-            userDeletedKeys = [];
-            renderUserDeleted();
         });
     }
 
@@ -242,21 +208,13 @@
         collectRulesFromTable();
 
         ApiClient.getPluginConfiguration(pluginId).then(function (config) {
-            config.EnableSeriesCollections = document.getElementById('EnableSeriesCollections').checked;
-            config.SeriesMinMovieCount     = parseInt(document.getElementById('SeriesMinMovieCount').value) || 2;
-            config.EnableThemeCollections  = document.getElementById('EnableThemeCollections').checked;
-            config.SyncIntervalHours       = parseInt(document.getElementById('SyncIntervalHours').value) || 24;
-            config.ThemeCollectionRulesJson = JSON.stringify(themeRules);
-
+            config.EnableSeriesCollections      = document.getElementById('EnableSeriesCollections').checked;
+            config.SeriesMinMovieCount          = parseInt(document.getElementById('SeriesMinMovieCount').value) || 2;
+            config.EnableThemeCollections       = document.getElementById('EnableThemeCollections').checked;
+            config.SyncIntervalHours            = parseInt(document.getElementById('SyncIntervalHours').value) || 24;
+            config.ThemeCollectionRulesJson     = JSON.stringify(themeRules);
+            config.UserDeletedCollectionKeysJson = JSON.stringify(userDeletedKeys);
             return ApiClient.updatePluginConfiguration(pluginId, config);
-        }).then(function () {
-            // Persist updated user-deleted keys back to state
-            return ApiClient.ajax({
-                url: ApiClient.getUrl('SmartCollections/UserDeletedKeys'),
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(userDeletedKeys)
-            });
         }).then(function () {
             Dashboard.processPluginConfigurationUpdateResult();
         }).catch(function () {
@@ -268,28 +226,16 @@
 
     document.getElementById('AddRuleBtn').addEventListener('click', function () {
         collectRulesFromTable();
-        themeRules.push({
-            Name: 'New Collection',
-            TitleKeywords: '',
-            GenreKeywords: '',
-            TagKeywords: '',
-            MinMovieCount: 2,
-            MatchMode: 'Any',
-            Enabled: true
-        });
+        themeRules.push({ Name: 'New Collection', TitleKeywords: '', GenreKeywords: '', TagKeywords: '', MinMovieCount: 2, MatchMode: 'Any', Enabled: true });
         renderRulesTable();
     });
 
     document.getElementById('SmartCollectionsConfigForm').addEventListener('submit', saveConfig);
-
     document.querySelector('#SmartCollectionsConfigPage').addEventListener('pageshow', loadConfig);
-
-    // ── Util ─────────────────────────────────────────────────────────────────
 
     function esc(s) {
         return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
-
 }());
 </script>
 </body>

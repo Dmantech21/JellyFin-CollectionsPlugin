@@ -22,7 +22,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Parse version from tag
         id: version
@@ -51,7 +51,7 @@ jobs:
             "description": "Automatically creates and maintains movie collections based on series and themes.",
             "overview": "Creates movie collections for series (via TMDb metadata) and custom theme rules (e.g. Christmas movies). Self-healing: missing plugin-managed collections are recreated automatically unless you deleted them intentionally.",
             "owner": "dmantech21",
-            "targetAbi": "10.9.0.0",
+            "targetAbi": "10.11.0.0",
             "version": "${{ steps.version.outputs.version }}"
           }
           EOF
@@ -87,7 +87,7 @@ jobs:
           new_entry = {
               "version":   version4,
               "changelog": changelog,
-              "targetAbi": "10.9.0.0",
+              "targetAbi": "10.11.0.0",
               "sourceUrl": source_url,
               "checksum":  checksum,
               "timestamp": timestamp,
