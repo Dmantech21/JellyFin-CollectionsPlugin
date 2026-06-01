@@ -8,12 +8,12 @@
     "owner": "dmantech21",
     "versions": [
       {
-        "version": "1.0.3.0",
+        "version": "1.0.4.0",
         "changelog": "See release notes.",
         "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/Dmantech21/JellyFin-CollectionsPlugin/releases/download/v1.0.3/smartcollections_1.0.3.zip",
-        "checksum": "8c53d518c9d433b391ffc088f8221f9c",
-        "timestamp": "2026-06-01T21:02:13Z"
+        "sourceUrl": "https://github.com/Dmantech21/JellyFin-CollectionsPlugin/releases/download/v1.0.4/smartcollections_1.0.4.zip",
+        "checksum": "fb6112f85ac148b925d9469a3195b218",
+        "timestamp": "2026-06-01T21:43:46Z"
       },
       {
         "version": "1.0.0.0",
