@@ -56,5 +56,3 @@ CodeCoverage/
 TestResult.xml
 nunit-*.xml
 
-# Local Jellyfin SDK DLLs (downloaded by setup-sdk.sh)
-.jellyfin-sdk/
