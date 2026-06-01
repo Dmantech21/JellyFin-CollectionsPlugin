@@ -12,14 +12,32 @@
     <Version>1.0.0</Version>
     <Authors>dmantech21</Authors>
     <Description>Automatically creates and maintains movie collections based on series and themes.</Description>
+    <!--
+      MediaBrowser.Common and MediaBrowser.Controller are not on NuGet.org for Jellyfin 10.x.
+      They ship with the Jellyfin server binary. JellyfinSdkDir should point to a directory
+      containing those DLLs (extracted from a Jellyfin release).
+      CI sets this automatically. Local devs: run setup-sdk.sh first.
+    -->
+    <JellyfinSdkDir Condition="'$(JellyfinSdkDir)' == ''">$(MSBuildProjectDirectory)/../.jellyfin-sdk</JellyfinSdkDir>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Available on NuGet.org -->
     <PackageReference Include="Jellyfin.Model" Version="10.9.0" ExcludeAssets="runtime" />
-    <PackageReference Include="MediaBrowser.Common" Version="10.9.0" ExcludeAssets="runtime" />
-    <PackageReference Include="MediaBrowser.Controller" Version="10.9.0" ExcludeAssets="runtime" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" ExcludeAssets="runtime" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.1" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Referenced from local Jellyfin server DLLs; Private=false = not copied into plugin output -->
+    <Reference Include="MediaBrowser.Common">
+      <HintPath>$(JellyfinSdkDir)/MediaBrowser.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="MediaBrowser.Controller">
+      <HintPath>$(JellyfinSdkDir)/MediaBrowser.Controller.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>
