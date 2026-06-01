@@ -14,7 +14,8 @@ namespace Jellyfin.Plugin.SmartCollections.Services;
 /// Self-healing logic:
 ///   Each sync run first checks every collection ID we previously created.
 ///   Any that no longer exist in Jellyfin were deleted — we record the rule key
-///   as "user-deleted" and never recreate it until the user re-enables it via the config UI.
+///   in PluginConfiguration as "user-deleted" and never recreate it unless the
+///   user removes the key from the plugin settings page.
 ///   Collections that still exist are updated (new matching movies are added).
 /// </summary>
 public class CollectionSyncService
@@ -41,8 +42,9 @@ public class CollectionSyncService
         var config = Plugin.Instance!.Configuration;
         var state = await _stateManager.LoadStateAsync(cancellationToken).ConfigureAwait(false);
 
-        // Phase 1 (5 %): detect user-deleted collections and update state accordingly
-        DetectUserDeletions(state);
+        // Phase 1 (5 %): detect user-deleted collections and persist to config
+        bool configDirty = DetectUserDeletions(state, config);
+        if (configDirty) Plugin.Instance.SaveConfiguration();
         progress.Report(5);
         await _stateManager.SaveStateAsync(state, cancellationToken).ConfigureAwait(false);
 
@@ -65,14 +67,17 @@ public class CollectionSyncService
         await _stateManager.SaveStateAsync(state, cancellationToken).ConfigureAwait(false);
         progress.Report(100);
         _logger.LogInformation("SmartCollections: sync complete. Managed: {Count}, UserDeleted: {Del}",
-            state.ManagedCollections.Count, state.UserDeletedCollectionKeys.Count);
+            state.ManagedCollections.Count, config.GetUserDeletedKeys().Count);
     }
 
     // ── Phase 1: detect deletions ─────────────────────────────────────────────
 
-    private void DetectUserDeletions(PluginState state)
+    /// <returns>True if the config was modified and should be saved.</returns>
+    private bool DetectUserDeletions(PluginState state, PluginConfiguration config)
     {
+        var userDeleted = config.GetUserDeletedKeys();
         var deletedKeys = new List<string>();
+        bool changed = false;
 
         foreach (var (key, info) in state.ManagedCollections)
         {
@@ -82,13 +87,19 @@ public class CollectionSyncService
                 _logger.LogInformation(
                     "SmartCollections: collection '{Key}' (ID {Id}) no longer exists — marking as user-deleted",
                     key, info.CollectionId);
-                state.UserDeletedCollectionKeys.Add(key);
+                userDeleted.Add(key);
                 deletedKeys.Add(key);
+                changed = true;
             }
         }
 
         foreach (var key in deletedKeys)
             state.ManagedCollections.Remove(key);
+
+        if (changed)
+            config.SetUserDeletedKeys(userDeleted);
+
+        return changed;
     }
 
     // ── Phase 2: series collections ───────────────────────────────────────────
@@ -116,7 +127,8 @@ public class CollectionSyncService
             var group = groups[i];
             var key = SeriesKey(group.Key);
             var movieIds = group.Select(m => m.Id).ToList();
-            await SyncCollectionAsync(state, key, group.Key, movieIds, cancellationToken).ConfigureAwait(false);
+            await SyncCollectionAsync(state, config, key, group.Key, movieIds, cancellationToken)
+                .ConfigureAwait(false);
             progress.Report(Lerp(pStart, pEnd, (double)(i + 1) / groups.Count));
         }
     }
@@ -154,7 +166,7 @@ public class CollectionSyncService
             }
             else
             {
-                await SyncCollectionAsync(state, key, rule.Name, matchingIds, cancellationToken)
+                await SyncCollectionAsync(state, config, key, rule.Name, matchingIds, cancellationToken)
                     .ConfigureAwait(false);
             }
 
@@ -166,12 +178,14 @@ public class CollectionSyncService
 
     private async Task SyncCollectionAsync(
         PluginState state,
+        PluginConfiguration config,
         string key,
         string name,
         List<Guid> movieIds,
         CancellationToken cancellationToken)
     {
-        if (state.UserDeletedCollectionKeys.Contains(key))
+        var userDeleted = config.GetUserDeletedKeys();
+        if (userDeleted.Contains(key))
         {
             _logger.LogDebug("SmartCollections: '{Key}' is user-deleted — skipping", key);
             return;
@@ -179,7 +193,6 @@ public class CollectionSyncService
 
         if (state.ManagedCollections.TryGetValue(key, out var info))
         {
-            // Collection already exists — add any new movies
             var newIds = movieIds.Except(info.ItemIds).ToList();
             if (newIds.Count > 0)
             {
@@ -205,7 +218,7 @@ public class CollectionSyncService
             return;
         }
 
-        // New collection — create it
+        // Create new collection
         _logger.LogInformation("SmartCollections: creating collection '{Name}' with {Count} movies", name, movieIds.Count);
         try
         {
@@ -213,7 +226,7 @@ public class CollectionSyncService
             {
                 Name = name,
                 IsLocked = false,
-                ItemIdList = Array.Empty<string>()   // add items in separate call for reliability
+                ItemIdList = Array.Empty<string>()
             }).ConfigureAwait(false);
 
             if (movieIds.Count > 0)
@@ -248,30 +261,21 @@ public class CollectionSyncService
 
         bool titleHit = titleKws.Count > 0 &&
             titleKws.Any(k => movie.Name?.Contains(k, StringComparison.OrdinalIgnoreCase) == true);
-
         bool genreHit = genreKws.Count > 0 && movie.Genres != null &&
             genreKws.Any(k => movie.Genres.Any(g => g.Contains(k, StringComparison.OrdinalIgnoreCase)));
-
         bool tagHit = tagKws.Count > 0 && movie.Tags != null &&
             tagKws.Any(k => movie.Tags.Any(t => t.Contains(k, StringComparison.OrdinalIgnoreCase)));
 
         if (string.Equals(rule.MatchMode, "All", StringComparison.OrdinalIgnoreCase))
-        {
-            // Every non-empty keyword group must have at least one hit
-            return (titleKws.Count == 0 || titleHit)
-                && (genreKws.Count == 0 || genreHit)
-                && (tagKws.Count  == 0 || tagHit);
-        }
+            return (titleKws.Count == 0 || titleHit) && (genreKws.Count == 0 || genreHit) && (tagKws.Count == 0 || tagHit);
 
-        // Any mode (default): at least one group must hit
         return titleHit || genreHit || tagHit;
     }
 
     private static List<string> ParseKeywords(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return new List<string>();
-        return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                  .ToList();
+        return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
     }
 
     // ── Library helpers ───────────────────────────────────────────────────────
@@ -288,6 +292,5 @@ public class CollectionSyncService
 
     private static string SeriesKey(string name) => $"series:{name}";
     private static string ThemeKey(string name)  => $"theme:{name}";
-
     private static double Lerp(double a, double b, double t) => a + (b - a) * Math.Clamp(t, 0, 1);
 }

@@ -8,15 +8,11 @@ public class PluginConfiguration : BasePluginConfiguration
 {
     // ── Series collections ────────────────────────────────────────────────────
 
-    /// <summary>Auto-create collections for movie series (uses TMDb CollectionName metadata).</summary>
     public bool EnableSeriesCollections { get; set; } = true;
-
-    /// <summary>Minimum number of movies in a series before a collection is created.</summary>
     public int SeriesMinMovieCount { get; set; } = 2;
 
     // ── Theme collections ─────────────────────────────────────────────────────
 
-    /// <summary>Auto-create collections based on user-defined keyword/genre rules.</summary>
     public bool EnableThemeCollections { get; set; } = true;
 
     /// <summary>JSON-serialized List&lt;ThemeCollectionRule&gt;.</summary>
@@ -24,8 +20,15 @@ public class PluginConfiguration : BasePluginConfiguration
 
     // ── Scheduler ─────────────────────────────────────────────────────────────
 
-    /// <summary>How often the sync task runs automatically (hours).</summary>
     public int SyncIntervalHours { get; set; } = 24;
+
+    // ── User-deleted collections ──────────────────────────────────────────────
+
+    /// <summary>
+    /// JSON-serialized List&lt;string&gt; of rule keys (e.g. "series:John Wick Collection")
+    /// that the user has explicitly deleted. The plugin will never recreate these.
+    /// </summary>
+    public string UserDeletedCollectionKeysJson { get; set; } = "[]";
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -33,54 +36,39 @@ public class PluginConfiguration : BasePluginConfiguration
     {
         if (string.IsNullOrWhiteSpace(ThemeCollectionRulesJson))
             return new List<ThemeCollectionRule>();
-
         try
         {
             return JsonSerializer.Deserialize<List<ThemeCollectionRule>>(ThemeCollectionRulesJson)
                    ?? new List<ThemeCollectionRule>();
         }
-        catch
+        catch { return new List<ThemeCollectionRule>(); }
+    }
+
+    public HashSet<string> GetUserDeletedKeys()
+    {
+        try
         {
-            return new List<ThemeCollectionRule>();
+            var list = JsonSerializer.Deserialize<List<string>>(UserDeletedCollectionKeysJson)
+                       ?? new List<string>();
+            return new HashSet<string>(list, StringComparer.OrdinalIgnoreCase);
         }
+        catch { return new HashSet<string>(StringComparer.OrdinalIgnoreCase); }
+    }
+
+    public void SetUserDeletedKeys(HashSet<string> keys)
+    {
+        UserDeletedCollectionKeysJson = JsonSerializer.Serialize(
+            keys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase).ToList());
     }
 
     private static string BuildDefaultRulesJson()
     {
         var defaults = new List<ThemeCollectionRule>
         {
-            new()
-            {
-                Name = "Christmas Movies",
-                Enabled = true,
-                MinMovieCount = 2,
-                TitleKeywords = "christmas,xmas",
-                GenreKeywords = "",
-                TagKeywords = "christmas,holiday",
-                MatchMode = "Any"
-            },
-            new()
-            {
-                Name = "Halloween Movies",
-                Enabled = true,
-                MinMovieCount = 2,
-                TitleKeywords = "halloween",
-                GenreKeywords = "",
-                TagKeywords = "halloween",
-                MatchMode = "Any"
-            },
-            new()
-            {
-                Name = "DC Extended Universe",
-                Enabled = false,
-                MinMovieCount = 2,
-                TitleKeywords = "",
-                GenreKeywords = "",
-                TagKeywords = "dceu,dc extended universe",
-                MatchMode = "Any"
-            }
+            new() { Name = "Christmas Movies", Enabled = true,  MinMovieCount = 2, TitleKeywords = "christmas,xmas", GenreKeywords = "", TagKeywords = "christmas,holiday", MatchMode = "Any" },
+            new() { Name = "Halloween Movies", Enabled = true,  MinMovieCount = 2, TitleKeywords = "halloween",      GenreKeywords = "", TagKeywords = "halloween",         MatchMode = "Any" },
+            new() { Name = "DC Extended Universe", Enabled = false, MinMovieCount = 2, TitleKeywords = "", GenreKeywords = "", TagKeywords = "dceu,dc extended universe", MatchMode = "Any" }
         };
-
         return JsonSerializer.Serialize(defaults, new JsonSerializerOptions { WriteIndented = true });
     }
 }
