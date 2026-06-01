@@ -1,7 +1,7 @@
 using Jellyfin.Plugin.SmartCollections.ScheduledTasks;
 using Jellyfin.Plugin.SmartCollections.Services;
-using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller;
+using MediaBrowser.Controller.Plugins;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Jellyfin.Plugin.SmartCollections;
@@ -12,7 +12,7 @@ namespace Jellyfin.Plugin.SmartCollections;
 /// </summary>
 public class PluginServiceRegistrator : IPluginServiceRegistrator
 {
-    public void RegisterServices(IServiceCollection serviceCollection, IApplicationHost applicationHost)
+    public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
     {
         serviceCollection.AddSingleton<StateManager>();
         serviceCollection.AddSingleton<CollectionSyncService>();
