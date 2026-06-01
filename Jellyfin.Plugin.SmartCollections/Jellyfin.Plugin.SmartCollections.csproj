@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Configuration\configPage.html" />
+    <EmbeddedResource Include="Configuration\configController.js" />
   </ItemGroup>
 
 </Project>
