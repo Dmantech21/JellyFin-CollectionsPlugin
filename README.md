@@ -14,17 +14,23 @@ Automatically creates and maintains movie collections without babysitting.
 
 ## Installation
 
-### From the plugin repository (recommended)
-_Not yet published — install manually for now._
+### Via Jellyfin plugin catalog (recommended)
+
+1. In Jellyfin, go to **Administration → Plugins → Repositories**
+2. Click **Add**, paste the manifest URL, and save:
+   ```
+   https://raw.githubusercontent.com/Dmantech21/JellyFin-CollectionsPlugin/main/manifest.json
+   ```
+3. Go to **Catalog**, find **Smart Collections**, and click **Install**
+4. Restart Jellyfin when prompted
+5. Configure the plugin under **Administration → Plugins → Smart Collections**
 
 ### Manual installation
-1. Download the latest release `.zip` from the [Releases](../../releases) page.
-2. Extract `Jellyfin.Plugin.SmartCollections.dll` into your Jellyfin plugins directory:
-   - Linux: `~/.local/share/jellyfin/plugins/SmartCollections_1.0.0/`
-   - Docker: `/config/plugins/SmartCollections_1.0.0/`
+1. Download the latest `.zip` from the [Releases](../../releases) page
+2. Extract its contents into a new folder inside your Jellyfin plugins directory:
+   - Linux / Docker: `<jellyfin-data>/plugins/SmartCollections_1.0.0/`
    - Windows: `%APPDATA%\Jellyfin\plugins\SmartCollections_1.0.0\`
-3. Restart Jellyfin.
-4. Go to **Administration → Plugins → Smart Collections** to configure.
+3. Restart Jellyfin
 
 ## Building from source
 

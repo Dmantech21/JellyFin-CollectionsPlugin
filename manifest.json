@@ -1,0 +1,11 @@
+[
+  {
+    "category": "General",
+    "guid": "7c78ef5d-3741-4b63-a22e-5a1f6c12f0db",
+    "name": "Smart Collections",
+    "description": "Automatically creates and maintains movie collections based on series and themes.",
+    "overview": "Creates movie collections for series (via TMDb metadata) and custom theme rules (e.g. Christmas movies). Self-healing: missing plugin-managed collections are recreated automatically unless you deleted them intentionally.",
+    "owner": "dmantech21",
+    "versions": []
+  }
+]
