@@ -19,7 +19,7 @@ Automatically creates and maintains movie collections without babysitting.
 1. In Jellyfin, go to **Administration → Plugins → Repositories**
 2. Click **Add**, paste the manifest URL, and save:
    ```
-   https://raw.githubusercontent.com/Dmantech21/JellyFin-CollectionsPlugin/main/manifest.json
+   https://raw.githubusercontent.com/Dmantech21/JellyFin-CollectionsPlugin/releases/manifest.json
    ```
 3. Go to **Catalog**, find **Smart Collections**, and click **Install**
 4. Restart Jellyfin when prompted

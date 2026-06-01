@@ -107,13 +107,28 @@ jobs:
           CHECKSUM:   ${{ steps.zip.outputs.checksum }}
           TIMESTAMP:  ${{ steps.version.outputs.tag }}
 
-      - name: Commit updated manifest.json
+      - name: Publish updated manifest.json to releases branch
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Stash the updated manifest so we can carry it across branch switches
+          cp manifest.json /tmp/manifest-updated.json
+
+          # Switch to the 'releases' branch (create as orphan if it doesn't exist yet).
+          # This branch is intentionally NOT protected so the workflow can push to it.
+          if git ls-remote --exit-code origin releases; then
+            git fetch origin releases
+            git checkout releases
+          else
+            git checkout --orphan releases
+            git rm -rf . --quiet
+          fi
+
+          cp /tmp/manifest-updated.json manifest.json
           git add manifest.json
           git commit -m "chore: update manifest for ${{ steps.version.outputs.tag }}"
-          git push origin HEAD:main
+          git push origin releases
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
@@ -126,7 +141,7 @@ jobs:
             Add this URL to Jellyfin under **Administration → Plugins → Repositories**:
 
             ```
-            https://raw.githubusercontent.com/${{ github.repository }}/main/manifest.json
+            https://raw.githubusercontent.com/${{ github.repository }}/releases/manifest.json
             ```
 
             Then install **Smart Collections** from the catalog and restart Jellyfin.
