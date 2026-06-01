@@ -34,33 +34,12 @@ jobs:
           # Jellyfin ABI version requires four parts
           echo "version4=${VER}.0" >> "$GITHUB_OUTPUT"
 
-      - name: Download Jellyfin SDK DLLs
-        run: |
-          # MediaBrowser.Common and MediaBrowser.Controller are not on NuGet.org.
-          # They ship with the Jellyfin server binary — download and extract them.
-          JF_VERSION="10.9.0"
-          wget -q \
-            "https://github.com/jellyfin/jellyfin/releases/download/v${JF_VERSION}/jellyfin_${JF_VERSION}_linux-amd64.tar.gz" \
-            -O jellyfin.tar.gz
-          mkdir -p jellyfin-extract .jellyfin-sdk
-          tar -xzf jellyfin.tar.gz -C jellyfin-extract/
-          DLL_DIR=$(find jellyfin-extract -name "MediaBrowser.Common.dll" -exec dirname {} \; | head -1)
-          if [ -z "$DLL_DIR" ]; then
-            echo "ERROR: Could not locate Jellyfin DLLs in release archive"
-            find jellyfin-extract -name "*.dll" | head -20
-            exit 1
-          fi
-          echo "Found DLLs at: $DLL_DIR"
-          cp "$DLL_DIR"/*.dll .jellyfin-sdk/
-          echo "JellyfinSdkDir=${{ github.workspace }}/.jellyfin-sdk" >> "$GITHUB_ENV"
-
       - name: Build
         run: |
           dotnet publish Jellyfin.Plugin.SmartCollections/Jellyfin.Plugin.SmartCollections.csproj \
             -c Release \
             -o publish/ \
-            /p:Version=${{ steps.version.outputs.version }} \
-            /p:JellyfinSdkDir="${{ github.workspace }}/.jellyfin-sdk"
+            /p:Version=${{ steps.version.outputs.version }}
 
       - name: Write meta.json
         run: |
