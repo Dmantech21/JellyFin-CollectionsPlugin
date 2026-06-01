@@ -50,7 +50,7 @@ public class CollectionSyncTask : IScheduledTask
         {
             new TaskTriggerInfo
             {
-                Type = TaskTriggerInfo.TriggerInterval,
+                Type = TaskTriggerInfoType.IntervalTrigger,
                 IntervalTicks = TimeSpan.FromHours(Math.Max(1, intervalHours)).Ticks
             }
         };
