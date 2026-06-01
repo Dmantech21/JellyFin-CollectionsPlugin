@@ -29,8 +29,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
             {
                 Name = "SmartCollections",
                 EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.configPage.html",
-                EnableInMainMenu = false,
-                IsMainConfigPage = true
+                EnableInMainMenu = false
             }
         };
 
