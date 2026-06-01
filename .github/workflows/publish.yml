@@ -119,7 +119,7 @@ jobs:
           # This branch is intentionally NOT protected so the workflow can push to it.
           if git ls-remote --exit-code origin releases; then
             git fetch origin releases
-            git checkout releases
+            git checkout -f releases
           else
             git checkout --orphan releases
             git rm -rf . --quiet
